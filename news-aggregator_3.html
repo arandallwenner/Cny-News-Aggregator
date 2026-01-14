@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNY News Aggregator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .source-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .source-btn:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .source-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .refresh-btn {
+            background: #48bb78;
+            color: white;
+            font-size: 16px;
+        }
+
+        .refresh-btn:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .news-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .news-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .news-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .news-content {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .news-source {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .news-title {
+            font-size: 1.3em;
+            color: #2d3748;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            font-weight: 700;
+        }
+
+        .news-description {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .read-more {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .read-more:hover {
+            color: #764ba2;
+        }
+
+        .stats {
+            text-align: center;
+            color: white;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .error {
+            background: #fc8181;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .news-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📰 CNY News Aggregator</h1>
+            <div class="controls">
+                <div class="filter-buttons" id="sourceButtons">
+                    <!-- Buttons will be generated dynamically -->
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="refresh-btn" id="refreshBtn" onclick="fetchNews()">🔄 Refresh News</button>
+            </div>
+        </header>
+
+        <div class="stats" id="stats"></div>
+        <div id="loading" class="loading" style="display: none;">Loading news articles...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div class="news-grid" id="newsGrid"></div>
+    </div>
+
+    <script>
+        // News sources configuration
+        const NEWS_SOURCES = [
+            {
+                id: 'all',
+                name: 'All Sources',
+                feeds: []
+            },
+            {
+                id: 'syracuse',
+                name: 'Syracuse.com',
+                feeds: ['https://www.syracuse.com/arc/outboundfeeds/rss/']
+            },
+            {
+                id: 'localsyr',
+                name: 'LocalSYR',
+                feeds: ['https://www.localsyr.com/feed/']
+            },
+            {
+                id: 'cnycentral',
+                name: 'CNY Central',
+                feeds: ['https://cnycentral.com/news/local.rss']
+            }
+        ];
+
+        let allArticles = [];
+        let activeSource = 'all';
+
+        // Initialize source buttons
+        function initializeButtons() {
+            const buttonsContainer = document.getElementById('sourceButtons');
+            NEWS_SOURCES.forEach(source => {
+                const btn = document.createElement('button');
+                btn.className = 'source-btn';
+                btn.textContent = source.name;
+                btn.onclick = () => filterBySource(source.id);
+                if (source.id === 'all') btn.classList.add('active');
+                buttonsContainer.appendChild(btn);
+            });
+        }
+
+        // Filter articles by source
+        function filterBySource(sourceId) {
+            activeSource = sourceId;
+            
+            // Update button states
+            document.querySelectorAll('.source-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displayArticles();
+        }
+
+        // Fetch news from RSS feeds using a CORS proxy
+        async function fetchNews() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            loadingEl.style.display = 'block';
+            errorEl.style.display = 'none';
+            refreshBtn.disabled = true;
+            allArticles = [];
+            
+            try {
+                const promises = [];
+                
+                // Get all feeds except 'all'
+                NEWS_SOURCES.slice(1).forEach(source => {
+                    source.feeds.forEach(feedUrl => {
+                        promises.push(fetchFeed(feedUrl, source.id, source.name));
+                    });
+                });
+                
+                const results = await Promise.allSettled(promises);
+                
+                results.forEach(result => {
+                    if (result.status === 'fulfilled' && result.value) {
+                        allArticles = allArticles.concat(result.value);
+                    }
+                });
+                
+                // Sort by date
+                allArticles.sort((a, b) => b.date - a.date);
+                
+                if (allArticles.length === 0) {
+                    errorEl.textContent = 'No articles could be loaded. This might be due to CORS restrictions. Try using a browser extension or running through a local server.';
+                    errorEl.style.display = 'block';
+                }
+                
+                displayArticles();
+                
+            } catch (error) {
+                console.error('Error fetching news:', error);
+                errorEl.textContent = 'Error loading news feeds. Please try again.';
+                errorEl.style.display = 'block';
+            } finally {
+                loadingEl.style.display = 'none';
+                refreshBtn.disabled = false;
+            }
+        }
+
+        // Filter out non-news promotional content
+        function isNewsContent(title, description) {
+            const excludePatterns = [
+                /how to watch/i,
+                /where to watch/i,
+                /what time/i,
+                /what channel/i,
+                /live stream/i,
+                /watch live/i,
+                /tv schedule/i,
+                /streaming guide/i,
+                /watch.*online/i,
+                /best deals/i,
+                /shopping/i,
+                /sponsored/i,
+                /advertisement/i,
+                /bonus code/i,
+                /promo code/i,
+                /betmgm/i,
+                /draftkings/i,
+                /fanduel/i,
+                /caesars/i,
+                /betting/i,
+                /sportsbook/i,
+                /odds/i,
+                /deposit bonus/i,
+                /bet \$\d+/i,
+                /\$\d+k?\s+bonus/i,
+                /sign up bonus/i
+            ];
+            
+            const combinedText = `${title} ${description}`.toLowerCase();
+            
+            // Return false if any exclude pattern matches
+            return !excludePatterns.some(pattern => pattern.test(combinedText));
+        }
+
+        // Fetch individual feed with multiple proxy attempts
+        async function fetchFeed(feedUrl, sourceId, sourceName) {
+            // Try multiple CORS proxy services
+            const proxies = [
+                `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`
+            ];
+            
+            for (let proxyUrl of proxies) {
+                try {
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) continue;
+                    
+                    // Handle RSS2JSON format
+                    if (proxyUrl.includes('rss2json')) {
+                        const data = await response.json();
+                        if (data.status === 'ok' && data.items && data.items.length > 0) {
+                            return data.items
+                                .filter(item => isNewsContent(item.title, item.description || item.content || ''))
+                                .slice(0, 10)
+                                .map(item => ({
+                                    source: sourceName,
+                                    sourceId: sourceId,
+                                    title: item.title,
+                                    description: stripHtml(item.description || item.content || '').substring(0, 200) + '...',
+                                    link: item.link,
+                                    image: item.enclosure?.link || item.thumbnail || 'https://via.placeholder.com/400x200/667eea/ffffff?text=News',
+                                    date: new Date(item.pubDate || item.published || Date.now())
+                                }));
+                        }
+                    } 
+                    // Handle AllOrigins (raw XML)
+                    else if (proxyUrl.includes('allorigins') || proxyUrl.includes('corsproxy')) {
+                        const text = await response.text();
+                        const parser = new DOMParser();
+                        const xml = parser.parseFromString(text, 'text/xml');
+                        
+                        const items = xml.querySelectorAll('item');
+                        if (items.length > 0) {
+                            return Array.from(items)
+                                .map(item => {
+                                    const getContent = (tag) => {
+                                        const el = item.querySelector(tag);
+                                        return el ? el.textContent : '';
+                                    };
+                                    
+                                    return {
+                                        title: getContent('title'),
+                                        description: getContent('description') || getContent('content\\:encoded'),
+                                        source: sourceName,
+                                        sourceId: sourceId,
+                                        link: getContent('link'),
+                                        image: item.querySelector('enclosure')?.getAttribute('url') || 
+                                               getContent('media\\:thumbnail') ||
+                                               'https://via.placeholder.com/400x200/667eea/ffffff?text=News',
+                                        date: new Date(getContent('pubDate') || Date.now())
+                                    };
+                                })
+                                .filter(item => isNewsContent(item.title, item.description))
+                                .slice(0, 10)
+                                .map(item => ({
+                                    ...item,
+                                    description: stripHtml(item.description).substring(0, 200) + '...'
+                                }));
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error(`Error with proxy for ${sourceName}:`, error);
+                    continue;
+                }
+            }
+            
+            console.warn(`All proxies failed for ${sourceName}`);
+            return null;
+        }
+
+        // Strip HTML tags
+        function stripHtml(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || '';
+        }
+
+        // Display articles
+        function displayArticles() {
+            const newsGrid = document.getElementById('newsGrid');
+            const statsEl = document.getElementById('stats');
+            
+            let articlesToDisplay = allArticles;
+            
+            if (activeSource !== 'all') {
+                articlesToDisplay = allArticles.filter(article => article.sourceId === activeSource);
+            }
+            
+            statsEl.textContent = `Showing ${articlesToDisplay.length} articles`;
+            
+            newsGrid.innerHTML = '';
+            
+            articlesToDisplay.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                
+                const timeAgo = getTimeAgo(article.date);
+                
+                card.innerHTML = `
+                    <img src="${article.image}" alt="${article.title}" onerror="this.src='https://via.placeholder.com/400x200/667eea/ffffff?text=News'">
+                    <div class="news-content">
+                        <span class="news-source">${article.source}</span>
+                        <h2 class="news-title">${article.title}</h2>
+                        <p class="news-description">${article.description}</p>
+                        <div class="news-meta">
+                            <span>${timeAgo}</span>
+                            <a href="${article.link}" target="_blank" class="read-more">Read More →</a>
+                        </div>
+                    </div>
+                `;
+                
+                newsGrid.appendChild(card);
+            });
+        }
+
+        // Get time ago string
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            const intervals = {
+                year: 31536000,
+                month: 2592000,
+                week: 604800,
+                day: 86400,
+                hour: 3600,
+                minute: 60
+            };
+            
+            for (let [unit, secondsInUnit] of Object.entries(intervals)) {
+                const interval = Math.floor(seconds / secondsInUnit);
+                if (interval >= 1) {
+                    return `${interval} ${unit}${interval > 1 ? 's' : ''} ago`;
+                }
+            }
+            
+            return 'Just now';
+        }
+
+        // Initialize app
+        initializeButtons();
+        fetchNews();
+    </script>
+</body>
+</html>
